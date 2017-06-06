@@ -44,7 +44,7 @@ if [ $node -eq 1 ]; then
   set -e
 
   # disable telemetry for developers
- docker run \
+  docker run \
     --rm \
     appropriate/curl \
       -s \
@@ -55,46 +55,46 @@ if [ $node -eq 1 ]; then
         "http://$rancher_server_ip/v2-beta/setting"
 
 
-# lookup orchestrator template id
-while true; do
-  ENV_TEMPLATE_ID=$(docker run \
+  # lookup orchestrator template id
+  while true; do
+    ENV_TEMPLATE_ID=$(docker run \
+      -v /tmp:/tmp \
+      --rm \
+      appropriate/curl \
+        -s \
+          "http://$rancher_server_ip/v2-beta/projectTemplates?name=$orchestrator" | jq '.data[0].id' | tr -d '"')
+
+    # might've received 422 InvalidReference if the templates haven't populated yet
+    if [[ "$ENV_TEMPLATE_ID" == 1pt* ]]; then
+      break
+    else
+      sleep 5
+    fi
+  done
+
+  # create an environment with specified orchestrator template
+  docker run \
     -v /tmp:/tmp \
     --rm \
     appropriate/curl \
       -s \
-        "http://$rancher_server_ip/v2-beta/projectTemplates?name=$orchestrator" | jq '.data[0].id' | tr -d '"')
+      -X POST \
+      -H 'Accept: application/json' \
+      -H 'Content-Type: application/json' \
+      -d "{\"description\":\"$orchestrator\",\"name\":\"$orchestrator\",\"projectTemplateId\":\"$ENV_TEMPLATE_ID\",\"allowSystemRole\":false,\"members\":[],\"virtualMachine\":false,\"servicesPortRange\":null}" \
+        "http://$rancher_server_ip/v2-beta/projects"
 
-  # might've received 422 InvalidReference if the templates haven't populated yet
-  if [[ "$ENV_TEMPLATE_ID" == 1pt* ]]; then
-    break
-  else
-    sleep 5
-  fi
-done
+  # lookup default environment id
+  DEFAULT_ENV_ID=$(docker run -v /tmp:/tmp --rm appropriate/curl -s "http://$rancher_server_ip/v2-beta/project?name=Default" | jq '.data[0].id' | tr -d '"')
 
-# create an environment with specified orchestrator template
-docker run \
-  -v /tmp:/tmp \
-  --rm \
-  appropriate/curl \
-    -s \
-    -X POST \
-    -H 'Accept: application/json' \
-    -H 'Content-Type: application/json' \
-    -d "{\"description\":\"$orchestrator\",\"name\":\"$orchestrator\",\"projectTemplateId\":\"$ENV_TEMPLATE_ID\",\"allowSystemRole\":false,\"members\":[],\"virtualMachine\":false,\"servicesPortRange\":null}" \
-      "http://$rancher_server_ip/v2-beta/projects"
-
-# lookup default environment id
-DEFAULT_ENV_ID=$(docker run -v /tmp:/tmp --rm appropriate/curl -s "http://$rancher_server_ip/v2-beta/project?name=Default" | jq '.data[0].id' | tr -d '"')
-
-# delete default environment
-docker run \
-  --rm \
-  appropriate/curl \
-    -s \
-    -X DELETE \
-    -H 'Accept: application/json' \
-    -H 'Content-Type: application/json' \
-    -d '{}' \
-      "http://$rancher_server_ip/v2-beta/projects/$DEFAULT_ENV_ID/?action=delete"
+  # delete default environment
+  # docker run \
+  #   --rm \
+  #   appropriate/curl \
+  #     -s \
+  #     -X DELETE \
+  #     -H 'Accept: application/json' \
+  #     -H 'Content-Type: application/json' \
+  #     -d '{}' \
+  #       "http://$rancher_server_ip/v2-beta/projects/$DEFAULT_ENV_ID/?action=delete"
 fi
