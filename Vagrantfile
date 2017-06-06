@@ -13,7 +13,7 @@ Vagrant.configure(2) do |config|
 
   config.vm.define "master" do |master|
     c = x.fetch('master')
-    master.vm.box = "williamyeh/ubuntu-trusty64-docker"
+    master.vm.box   = "williamyeh/ubuntu-trusty64-docker"
     master.vm.guest = :ubuntu
     master.vm.network :private_network, ip: x.fetch('ip').fetch('master'), nic_type: $private_nic_type    
     master.vm.provider :virtualbox do |v|
@@ -29,7 +29,7 @@ Vagrant.configure(2) do |config|
     c = x.fetch('server')
     hostname = "server-%02d" % i
     config.vm.define hostname do |server|
-      server.vm.box= "MatthewHartstonge/RancherOS"
+      server.vm.box   = "MatthewHartstonge/RancherOS"
       server.vm.guest = :linux
       server.vm.provider :virtualbox do |v|
         v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
@@ -48,8 +48,13 @@ Vagrant.configure(2) do |config|
     c = x.fetch('node')
     hostname = "node-%02d" % i
     config.vm.define hostname do |node|
-      node.vm.box   = "MatthewHartstonge/RancherOS"
-      node.vm.guest = :linux
+      if x.fetch('node').fetch('os') == "ubuntu"
+        node.vm.box   = "williamyeh/ubuntu-trusty64-docker"
+        node.vm.guest = :ubuntu
+      else
+        node.vm.box   = "MatthewHartstonge/RancherOS"
+        node.vm.guest = :linux
+      end
       node.vm.provider "virtualbox" do |v|
         v.cpus = c.fetch('cpus')
         v.memory = c.fetch('memory')
@@ -57,7 +62,7 @@ Vagrant.configure(2) do |config|
       end
       node.vm.network :private_network, ip: IPAddr.new(node_ip.to_i + i - 1, Socket::AF_INET).to_s, nic_type: $private_nic_type
       node.vm.hostname = hostname
-      node.vm.provision "shell", path: "scripts/configure_rancher_node.sh", args: [x.fetch('ip').fetch('master'), x.fetch('orchestrator')]
+      node.vm.provision "shell", path: "scripts/configure_rancher_node.sh", args: [x.fetch('ip').fetch('master'), x.fetch('orchestrator'), x.fetch('node').fetch('os')]
     end
   end
 

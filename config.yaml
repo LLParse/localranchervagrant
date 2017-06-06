@@ -1,5 +1,5 @@
 # cattle|kubernetes|swarm|mesos
-orchestrator: cattle
+orchestrator: kubernetes
 # https://hub.docker.com/r/rancher/server/tags/
 version: latest
 master:
@@ -13,6 +13,8 @@ node:
   count: 3
   cpus: 1
   memory: 2048
+  # rancheros|ubuntu
+  os: ubuntu
 ip:
   master: 172.22.101.100
   server: 172.22.101.101
